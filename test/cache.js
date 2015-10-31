@@ -1,134 +1,220 @@
-import _ from './support';
-import fs from 'fs';
-import path from 'path';
-import pkgMock from 'mock-npm-install';
-import promisify from '../lib/promisify';
-import { getPackageCachePath, getCachedBuildVersions } from '../lib/cache.js';
-import { installNodeHeaders, rebuildNativeModules, shouldRebuild } from '../lib/main.js';
-import { mkdir, rmdir } from './utils/fileio.js';
-import * as main from '../lib/main.js';
-import spawn from '../lib/spawn.js';
+var bootstrap = require('./utils/bootstrap.js');
+var _ = require('lodash');
+var fs = require('fs');
+var path = require('path');
+var pkgMock = require('mock-npm-install');
+var spawn = require('../lib/utils/spawn.js');
+var fileio = require('./utils/fileio.js');
+var cacher = require('../lib/cache.js');
+var ionizer = require('../lib/main.js');
 
-const rimraf = promisify(require('rimraf'));
-const cp = promisify(require('ncp').ncp);
+var test = require('tape');
 
-const targetHeaderDir = path.join(__dirname, 'testheaders');
-const targetModulesDir = path.join(__dirname, 'node_modules');
-const mockPkgDir = path.resolve(targetModulesDir, 'build-test-1');
-const mockPkgBuiltFile = path.resolve(mockPkgDir, 'build-test-file');
-const cachePath = getPackageCachePath(targetModulesDir);
-const moduleVersionToTest = '0.31.2';
+// bulk define local, cache-test constants
+var targetHeaderDir = path.join(__dirname, 'testheaders');
+var targetModulesDir = path.join(__dirname, 'node_modules');
+var mockPkgDir = path.resolve(targetModulesDir, 'build-test-1');
+var mockPkgBuiltFile = path.resolve(mockPkgDir, 'build-test-file');
+var cachePath = cacher.getPackageCachePath(targetModulesDir);
+var downsertTestCache = _.partial(cacher.downsertCache, targetModulesDir);
+var moduleVersionToTest = '0.31.2';
+var rebuildQuickConfig = {
+    targetVersion: moduleVersionToTest,
+    modulesDir: targetModulesDir,
+    headersDir: targetHeaderDir,
+    quick: true,
+};
+var rebuildQuickConfigIgnore = _.assign({}, rebuildQuickConfig, { ignore: 'build-test-1' });
+var mockPkg1;
+var mockPkg2;
 
-const assertFileNotPresent = function(path) {
-    const stat = fs.statSync(path);
-    if (stat instanceof Error) {
-        throw stat;
-    }
-}
-
-const installMockPackage = function() {
+// bulk define simple helper functions to install, remove, and perform i/o
+// on dummy pacakges installed and built in our test node_modules directory
+var assertTestPkgBuiltFilePresent = _.partial(fileio.assertFilePresent, mockPkgBuiltFile);
+var assertTestPkgBuiltFileNotPresent = _.partial(fileio.assertFileNotPresent, mockPkgBuiltFile);
+var installMockPackage = function() {
     return pkgMock.install({
         nodeModulesDir: targetModulesDir,
         package: {
             name: 'build-test-1',
-            scripts: { postinstall: `touch ${mockPkgBuiltFile}` } // npm build exec's
+            scripts: { postinstall: [
+                'touch', mockPkgBuiltFile
+            ].join(' ') } // `npm build` executes postinstall
         }
     });
 };
-
-describe('quick mode', function() {
-  this.timeout(30*1000);
-
-    describe('rebuildNativeModules quickly with caching', function() {
-        it(`should rebuild with cached versions`, async () => {
-            try {
-                await rmdir(targetModulesDir);
-                await rmdir(targetHeaderDir);
-                await mkdir(targetHeaderDir);
-                await mkdir(targetModulesDir);
-                let mockPkg1 = installMockPackage();
-
-                await installNodeHeaders(moduleVersionToTest, null, targetHeaderDir);
-                await main.rebuildNativeModules({
-                    nodeVersion: moduleVersionToTest,
-                    nodeModulesPath: targetModulesDir,
-                    headersDir: targetHeaderDir,
-                    quick: true
-                });
-
-                // assert that mock package build process run successfully
-                expect(fs.statSync(`${mockPkgBuiltFile}`)).to.be.ok;
-
-                // assert that rebuild-cache built successfully
-                expect(fs.statSync(cachePath)).to.be.ok;
-                const cachedContent = await getCachedBuildVersions(targetModulesDir);
-                cachedContent[0].nodeVersion.should.equal(moduleVersionToTest);
-
-                // assert that rebuild run again does not rebuild module after cached
-                fs.unlinkSync(mockPkgBuiltFile);
-                await main.rebuildNativeModules({
-                    nodeVersion: moduleVersionToTest,
-                    nodeModulesPath: targetModulesDir,
-                    headersDir: targetHeaderDir,
-                    quick: true
-                });
-                try {
-                    assertFileNotPresent(mockPkgBuiltFile);
-                } catch(err) {
-                    if (err.code !== 'ENOENT') {
-                        throw new Error('file was built when it was not supposed to');
-                    }
-                }
-
-                // assert that module updates after node_modules/some-package folder touched
-                const ctime_oldfolder = (fs.statSync(mockPkgBuiltFile)).ctime.toISOString();
-                pkgMock.remove({ nodeModulesDir: targetModulesDir, name: mockPkg1.name });
-                await (async () => {
-                    // delay so ctime.toISOString varies observably
-                    return new Promise((res) => { setTimeout(() => { res(); }, 2000); })
-                })();
-                mockPkg1 = installMockPackage();
-                await main.rebuildNativeModules({
-                    nodeVersion: moduleVersionToTest,
-                    nodeModulesPath: targetModulesDir,
-                    headersDir: targetHeaderDir,
-                    quick: true
-                });
-                const ctime_newfolder = (fs.statSync(mockPkgBuiltFile)).ctime.toISOString();
-                expect(ctime_oldfolder !== ctime_newfolder).to.be.ok;; // pkg rebuilt!
-
-                await rmdir(targetModulesDir);
-                await rmdir(targetHeaderDir);
-            } catch(err) {
-                return Promise.reject();
-            }
-        });
-
-        it(`should ignore rebuilds on ignore request`, async () => {
-          await rmdir(targetModulesDir);
-          await rmdir(targetHeaderDir);
-          await mkdir(targetHeaderDir);
-          await mkdir(targetModulesDir);
-          let mockPkg1 = installMockPackage();
-
-          await installNodeHeaders(moduleVersionToTest, null, targetHeaderDir);
-          await main.rebuildNativeModules({
-              nodeVersion: moduleVersionToTest,
-              nodeModulesPath: targetModulesDir,
-              headersDir: targetHeaderDir,
-              quick: true,
-              ignore: 'build-test-1'
-          });
-
-          // assert that mock package build didn't build ignored package,
-          // so built file should not exist
-          try {
-              fs.statSync(mockPkgBuiltFile);
-          } catch (err) {
-              if (err.code !== 'ENOENT') {
-                  throw new Error('file was built when it was not supposed to');
-              }
-          }
-        });
+var installMockPackage2 = function() {
+    return pkgMock.install({
+        nodeModulesDir: targetModulesDir,
+        package: {
+            name: 'build-test-2',
+            scripts: { postinstall: [
+                'touch', mockPkgBuiltFile + '-2',
+            ].join(' ') } // `npm build` executes postinstall
+        }
     });
+};
+var mkdirHeaders = _.partial(fileio.mkdir, targetHeaderDir);
+var mkdirModules = _.partial(fileio.mkdir, targetModulesDir);
+var removeTestPkgBuiltFile = _.partial(fs.unlinkSync, mockPkgBuiltFile);
+var rmdirHeaders = _.partial(fileio.rmdir, targetHeaderDir);
+var rmdirModules = _.partial(fileio.rmdir, targetModulesDir);
+var testInstallMockPkg = function() { mockPkg1 = installMockPackage({ nodeModulesDir: targetModulesDir }); };
+var testInstallMockPkg2 = function() { mockPkg2 = installMockPackage2({ nodeModulesDir: targetModulesDir }); };
+var testRemoveMockPkg = function() {
+    pkgMock.remove({ nodeModulesDir: targetModulesDir, name: mockPkg1.name });
+};
+var testInstallNodeHeaders = function() { return ionizer.installHeaders(moduleVersionToTest, null, targetHeaderDir); };
+var testParseCache = function() { return JSON.parse(fs.readFileSync(cachePath)); };
+var testRebuildNativeQuick = _.partial(ionizer.rebuild, rebuildQuickConfig);
+var testRebuildNativeQuickIgnore = _.partial(ionizer.rebuild, rebuildQuickConfigIgnore);
+
+test('before', { timeout: 20000 }, function(t) {
+    Promise.resolve()
+    .then(function() { return bootstrap; })
+    .then(mkdirHeaders)
+    .then(testInstallNodeHeaders)
+    .finally(t.end);
+});
+
+test('quick mode - basic', { timeout: 20000 }, function(t) {
+    t.plan(4);
+
+    var end = _.partial(t.pass, 'end');
+
+    // exec test
+    Promise.resolve()
+    .then(mkdirModules)
+    .then(testInstallMockPkg)
+    .then(testRebuildNativeQuick)
+    .then(function assertFileStats() {
+        // assert that mock package build process run successfully
+        t.ok(fs.statSync(mockPkgBuiltFile), 'mock build file generated successfully');
+
+        // assert that rebuild-cache built successfully
+        t.ok(fs.statSync(cachePath), 'cache built successfully');
+        return cacher.getCachedBuildVersions(targetModulesDir).then(function(cachedContent) {
+            t.equal(cachedContent[0].nodeVersion, moduleVersionToTest, 'cached version matches specified cache-to-version');
+        });
+    })
+    .then(rmdirModules)
+    .then(downsertTestCache)
+    .catch(t.fail)
+    .finally(end);
+
+});
+
+test('quick mode - multi dependent package, deps installed different times', { timeout: 20000 }, function(t) {
+    t.plan(4);
+
+    var end = _.partial(t.pass, 'end');
+    var mock1BuildCtime;
+
+    // exec test
+    Promise.resolve()
+    .then(mkdirModules)
+    .then(testInstallMockPkg)
+    .then(testRebuildNativeQuick)
+    .then(function assertFileStats() {
+        // assert that mock package build process run successfully
+        t.ok(fs.statSync(mockPkgBuiltFile), 'mock package 1 build file generated');
+        mock1BuildCtime = fs.statSync(mockPkgBuiltFile).ctime.toISOString();
+    })
+    .then(testInstallMockPkg2)
+    .then(testRebuildNativeQuick)
+    .then(function assertFileStats() {
+        var mock1BuildCtimeSecondBuild = fs.statSync(mockPkgBuiltFile).ctime.toISOString();
+        t.ok(fs.statSync(mockPkgBuiltFile + '-2'), 'mock package 2 build file generated');
+        t.equal(mock1BuildCtime, mock1BuildCtimeSecondBuild, 'mock pkg 1 not rebuilt a second time after mock pkg 2 was installed/built');
+    })
+    .then(rmdirModules)
+    .then(downsertTestCache)
+    .catch(t.fail)
+    .finally(end);
+
+});
+
+test('quick mode - no rebuild post-cache', { timeout: 10000 }, function(t) {
+    t.plan(3);
+
+    var end = _.partial(t.pass, 'end');
+
+    var ctime_firstbuild;
+    var setCtimeFirstBuild = function() {
+        var cache = testParseCache();
+        ctime_firstbuild = fs.statSync(mockPkgBuiltFile).ctime.toISOString();
+        t.equal(ctime_firstbuild, cache[0].ctime, 'ctimes equal between file and cached version');
+    };
+    var ctime_secondbuild;
+    var setCtimeSecondBuild = function() { ctime_secondbuild = fs.statSync(mockPkgBuiltFile).ctime.toISOString(); };
+    var testCtimesEqual = function() {
+        t.equal(ctime_firstbuild, ctime_secondbuild, 'built file not rebuilt if module was in cache');
+    };
+
+    // assert that rebuild run again does not rebuild module after cached
+    Promise.resolve()
+    .then(mkdirModules)
+    .then(testInstallMockPkg)
+    .then(testRebuildNativeQuick)
+    .then(setCtimeFirstBuild)
+    .then(testRebuildNativeQuick) // call rebuild again to assert cache no-build
+    .then(setCtimeSecondBuild)
+    .then(testCtimesEqual)
+    .then(rmdirModules)
+    .then(downsertTestCache)
+    .catch(t.fail)
+    .finally(end);
+
+});
+
+test('quick mode - recache, rebuild post- package folder touch', { timeout: 10000 }, function(t) {
+    t.plan(3);
+
+    var end = _.partial(t.pass, 'end');
+
+    var ctime_oldfolder;
+    var setOldFolderCtime = function() { ctime_oldfolder = fs.statSync(mockPkgDir).ctime.toISOString(); };
+    var ctime_newfolder;
+    var delay = function() { return Promise.delay(1500); };
+    var setNewFolderCtime = function() { ctime_newfolder = fs.statSync(mockPkgDir).ctime.toISOString(); };
+    var testDifferentCtimes = function() {
+        t.notEqual(ctime_oldfolder, ctime_newfolder, 'ctimes different after folder modified');
+    };
+    var testBuildFileExists = function() {
+        t.ok(fs.statSync(mockPkgBuiltFile), 'test file rebuilt after folder modified');
+    };
+
+    // assert that module updates after node_modules/build-test folder modified
+    Promise.resolve()
+    .then(mkdirModules)
+    .then(testInstallMockPkg)
+    .then(setOldFolderCtime)
+    .then(testRemoveMockPkg) // modify by remove + re-install
+    .then(delay)
+    .then(testInstallMockPkg)
+    .then(setNewFolderCtime)
+    .then(testDifferentCtimes)
+    .then(testRebuildNativeQuick)
+    .then(testBuildFileExists)
+    .then(rmdirModules)
+    .then(downsertTestCache)
+    .catch(t.fail)
+    .finally(end);
+
+});
+
+test('quick mode - ignore', { timeout: 10000 }, function(t) {
+    t.plan(1);
+
+    var end = _.partial(t.pass, 'end');
+    Promise.resolve()
+    .then(mkdirModules)
+    .then(testInstallMockPkg)
+    .then(testRebuildNativeQuickIgnore)
+    .then(assertTestPkgBuiltFileNotPresent)
+    .then(rmdirModules)
+    // .then(downsertTestCache) // no cache exists, so don't downsert!
+    .catch(t.fail)
+    .finally(end);
+
 });
