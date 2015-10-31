@@ -1,24 +1,47 @@
-import promisify from '../../lib/promisify';
-const fs = promisify(require('fs'));
-const rimraf = promisify(require('rimraf'));
+var _ = require('lodash');
+var fs = Promise.promisifyAll(require('fs'));
+var rimraf = Promise.promisify(require('rimraf'));
 
-export async function rmdir(dir) {
-    try {
-        if (await fs.stat(dir)) {
-            await rimraf(dir);
-        }
-    } catch (err) {
-        // silent fail is OK
-    }
-};
+module.exports = {
+    rmdir: function(dir) {
+        return rimraf(dir);
+    },
 
-export async function mkdir(dir) {
-    await fs.mkdir(dir);
-    try {
-        if (await fs.stat(targetModulesDir)) {
-            await rimraf(targetModulesDir);
+    mkdir: function(dir) {
+        var mkdir = function() {
+            return fs.mkdirAsync(dir);
+        };
+        return mkdir().catch(function(err) {
+            if (err === 'EEXIST' || err.code === 'EEXIST') {
+                return;
+            }
+            throw err;
+        });
+    },
+
+    assertFilePresent: function(path) {
+        var stat = fs.statSync(path);
+        if (stat instanceof Error) {
+            throw stat;
         }
-    } catch (err) {
-        // silent fail is OK
-    }
+    },
+
+    assertFileNotPresent: function(path) {
+        var stat;
+        try {
+            stat = fs.statSync(path);
+        } catch(err) {
+            if (err.code !== 'ENOENT') {
+                throw err;
+            }
+            return;
+        }
+        var err = new ReferenceError([
+            'file present when file should not be present:',
+            path
+        ].join(' '));
+        err.code = 'EFILEBOGUS'
+        throw err;
+    },
+
 };

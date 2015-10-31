@@ -2,26 +2,43 @@
 
 Build [electron](atom/electron) compatible modules while working in any version of nodejs.
 
-## why
+<img width="100px" height="100px" src="img/ionizer_rounded.png"></img>
 
-Dependencies commonly have a build process that executes when installing them.  Perhaps you've seen `node-gyp` when installing something?  Some packages even require that they be compiled against specific versions of nodejs.  For exampple, if you are developing on nodejs `0.12.7`, but your electron application under the hood runs iojs `2.5.0`, the compiled module may have hard links against the `0.12.7` installation.  Therefore, if your electron application tries to run them, it will error out!  To alleviate, you must build your modules against the anticipated runtime, which is `2.5.0`.  Ionizer helps do this.
+[ ![Codeship Status for cdaringe/ionizer](https://codeship.com/projects/f1c1b6b0-7bb1-0133-ed8b-3a9edbaef368/status?branch=master)](https://codeship.com/projects/119677)
 
-## install
-Install the package with `--save-dev`:
+## about
+Your system's version of `nodejs` most likely does _not_ match the version
+that [electron](atom/electron) runs behind the scenes.  This can be problematic. Dependencies commonly execute build process
+whilst installing them.  Perhaps you have seen `node-gyp` build [addons](https://nodejs.org/api/addons.html) when installing something via npm?
+For example, suppose
 
+- you are developing on nodejs `0.12.7`
+- your electron application under the hood runs iojs `2.5.0`
+- you install `npm install --save node-sass`
+- you `require('node-sass')` into you electron application and run it...
+- YOUR APP CRASHES! :(  `node-sass` was built for `0.12.7 (module version 14)`, not for `2.5.0 (module version 44)`
+- you run `ionizer -q`, and reload your app.  All is zen!
+
+## installation
 ```sh
 npm install --save-dev ionizer
 ```
 
-
-## usage
+## basic usage
 Whenever you install a new npm package into your electron project, rerun ionizer:
 
 ```sh
-./node_modules/.bin/ionizer # [options]
+// package.json
+{
+    ...
+    scripts: {
+        "postinstall": "ionizer -q", // or ...
+        "postinstall": "ionizer -q --limit=leveldown,some-pkg",
+    }
+}
 ```
 
-The recommended rebuild strategy is to use npm scripts and a build file:
+If you want to fine tune your rebuilds, try a rebuild script!
 
 ```json
 // inside your package.json
@@ -34,84 +51,66 @@ The recommended rebuild strategy is to use npm scripts and a build file:
 
 ```js
 // .ionizer.js
+// advanced rebuilding (see simpler package.json example above)
 var fs = require('fs');
 var path = require('path');
 var pkg = JSON.parse(fs.readFileSync('./package.json', 'utf8'));
-var pkgElectronPrebuiltVersion = pkg.devDependencies['electron-prebuilt']; // or a version, eg '0.30.6'
-var electronPrebuiltVersion = pkgElectronPrebuiltVersion.match(/\d+\.\d+\.\d+$/)[0];
+var _ = require('lodash');
+var electronVersion = _.get(pkg, 'dependencies.electron-prebuilt') || _.get(pkg, 'electron-version');
+electronVersion = electronVersion.match(/\d+\.\d+\.\d+$/)[0];
 var ionizer = require('ionizer');
+ionizer.setLogLevel('verbose');
 
-if (electronPrebuiltVersion !== pkgElectronPrebuiltVersion) {
-    throw new TypeError([
-        'electron-prebuilt needs to be a fixed version.',
-        'package.json:', pkgElectronPrebuiltVersion,
-        'parsed version:', electronPrebuiltVersion
-    ].join(' '));
-}
-
-
-ionizer.shouldRebuild(path.resolve('./node_modules/electron-prebuilt/dist/'))
-.then(function(shouldBuild) {
-    if (!shouldBuild) { return true; }
-    return ionizer.installNodeHeaders(electronPrebuiltVersion)
-})
-.then(function() {
-    return ionizer.rebuildNativeModules({
-        nodeVersion: electronPrebuiltVersion,
-        nodeModulesPath: './node_modules',
-        quick: true,
-        ignore: ['react', 'redux']
+// test if rebuilding necessary
+ionizer.shouldRebuild('/Users/username/ ... /Electron'); // electron path, see ]
+.then(function(rslt) {
+    if (!rslt.shouldRebuild) { process.exit(0); }
+    return ionizer.installNodeHeaders(electronVersion)
+    .then(function initRebuild() {
+        return ionizer.rebuild({
+            electronVersion: electronVersion,
+            modulesDir: './node_modules',
+            quick: true,
+            ignore: ['webpack', 'babel', 'react', 'redux', 'pouchy']
+        });
     });
-});
+})
 .catch(function(err) {
     console.error(err.message);
 });
 
 ```
 
+## options
 As demonstrated above, this package supports two modes:
 
 1. CLI mode
 1. package mode
 
-
-### options
-See [src/cli.js](src/cli.js) to see the available cli options to configure your rebuild.
-
-##### quick builds `quick`
-The `-q` flag will maintain a list of what packages have been built against a
-target version, and only rebuild those modules that are not currently built
-against it.
-
-##### ignore modules to rebuild `ignore`
-When using this module programatically, you can add `ignore: ['array', 'of', 'package', names]`
-when calling `rebuildNativeModules` to _not_ rebuild those modules.  This feature
-_must be used in conjuction with quick mode_, or is ignored.
-
-### build process integration
-
-ionizer is also a library that you can just require into your app or build process (e.g. grunt/gulp/etc) as described above.  Check out the [API docs]()
-
-```js
-import { installNodeHeaders, rebuildNativeModules, shouldRebuild } from 'ionizer';
-let shouldBuild = shouldRebuild('/path/to/Electron');
-let headerResult = installNodeHeaders('v0.25.0');
-headerResult.then(() => rebuildNativeModules('v0.25.0', './node_modules'));
-```
+The API while using as a package does not have a full doc set yet--please see the example above.  The options to `ionizer` are the same to the CLI as they are to `ionizer.rebuild` in the library.  Those may be found **[here](https://github.com/cdaringe/ionizer/blob/master/lib/cli.js#L21)**.
 
 ## note
-ionizer was initially a fork off of [shouldRebuild](electronjs/electronjs-rebuild), so make sure to give those guys a shout out.
-this package was created to improve performance and the development experience.  Notable differences between the packages are:
+
+### beta
+ionizer works, but it's in beta.  despite the API not being published formally now,
+it _will_ change in 2.0.0.  expect at the least new method names.  the CLI options
+set is not anticipated to change at 2.0.0.
+
+### fork'n'h4ck3d
+ionizer was initially a fork off of [shouldRebuild](electronjs/electronjs-rebuild), so make sure to give those guys a shout out.  this package was created to improve performance, development experience, and add some features.  Some dependencies _will build with ionizer_ that _won't build with electron-rebuild_, although windows support is still lacking in ionizer (help requested for `squish-squash` windows support!).  Notable differences between the packages are:
 
 1. less dependencies
-1. uses pure es5. no es6 compilation
-  1. makes testing, building, & distribution slower, cumbersome (subjective, I know)
-1. (faster tests)[https://github.com/electronjs/electron-rebuild/pull/28/files#r42517350], and a perf conscious mindset (not a jab, FTR)
+1. pure es5. no es6 compilation required for compatibility
+  1. improves testing, building, & distribution speed
+1. faster tests.  network tests are mocked out. once basic resources are cached. differing philosophies between projects
 
 # todo
-- [ ] drop `mocha`, add `tape`
-- [ ] mock out network tests
-- [ ] remove all es6, revert to es5 to dodge the build step
+- [ ] windows support (`squash-squash`)
+- [ ] build against global electron support (vs. electron-prebuilt)
+- [ ] add doc blocks and gen API docs
 - [ ] precommit-hook for lint, format, test
 - [ ] simplify method names
 - [ ] purge test artifacts
+- [ ] general API tidy!
+
+[cdaringe.com](http://www.cdaringe.com)

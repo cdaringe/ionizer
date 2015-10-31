@@ -1,110 +1,166 @@
-import _ from './support';
-import path from 'path';
-import pkgMock from 'mock-npm-install';
-import promisify from '../lib/promisify';
-import { mkdir, rmdir } from './utils/fileio.js';
-const fs = promisify(require('fs'));
-const cp = promisify(require('ncp').ncp);
+var bootstrap = require('./utils/bootstrap.js');
+var fs = require('fs');
+var _ = require('lodash');
+var app = require('ampersand-app');
+var path = require('path');
+var pkgMock = require('mock-npm-install');
+var test = require('tape');
+var fileio = require('./utils/fileio.js');
+var httpServer = require('http-server');
+var ionizer = require('../lib/main.js');
+var installHeaders = ionizer.installHeaders;
+var rebuild = ionizer.rebuild;
+var shouldRebuild = ionizer.shouldRebuild;
+var ePath = require('electron-prebuilt');
 
-import {installNodeHeaders, rebuildNativeModules, shouldRebuild} from '../lib/main.js';
+var cp = Promise.promisify(require('ncp').ncp);
 
-describe('installNodeHeaders', function() {
-  this.timeout(30*1000);
+// test constants
+var targetHeaderDir = app.targetHeaderDir;
+var targetModulesDir = app.targetModulesDir;
+var mockPkgDir = path.resolve(targetModulesDir, 'build-test-1');
+var mockPkgBuiltFile = path.resolve(mockPkgDir, 'build-test-file');
+var mockPkg1;
 
-  it('installs node headers for 0.25.2', async () => {
-    let targetHeaderDir = path.join(__dirname, 'testheaders');
-    await rmdir(targetHeaderDir);
-    await mkdir(targetHeaderDir);
-    await installNodeHeaders('0.25.2', null, targetHeaderDir);
-    let canary = await fs.stat(path.join(targetHeaderDir, '.node-gyp', '0.25.2', 'common.gypi'));
-    expect(canary).to.be.ok
-
-    await rmdir(targetHeaderDir);
-  });
-
-  it('check for installed headers for 0.27.2', async () => {
-    let targetHeaderDir = path.join(__dirname, 'testheaders');
-    await rmdir(targetHeaderDir);
-    await mkdir(targetHeaderDir);
-    await mkdir(path.join(targetHeaderDir, '.node-gyp'));
-    await mkdir(path.join(targetHeaderDir, '.node-gyp', '0.27.2'));
-    const canary = path.join(targetHeaderDir, '.node-gyp', '0.27.2', 'common.gypi');
-    await fs.close(await fs.open(canary, 'w'));
-
-    await installNodeHeaders('0.27.2', null, targetHeaderDir);
-    let shouldDie = true;
-    try {
-      await fs.stat(path.join(targetHeaderDir, '.node-gyp', '0.27.2', 'config.gypi'));
-    } catch (err) {
-      expect(err).to.exist;
-      shouldDie = false;
-    }
-    expect(shouldDie).to.equal(false);
-
-    await rmdir(targetHeaderDir);
-  });
-});
-
-describe('rebuildNativeModules', function() {
-  this.timeout(60*1000);
-
-  const moduleVersionsToTest = ['0.22.0', '0.31.2'];
-
-  for(let version of moduleVersionsToTest) {
-    it(`Rebuilds native modules against ${version}`, async () => {
-      try {
-          const targetHeaderDir = path.join(__dirname, 'testheaders');
-          const targetModulesDir = path.join(__dirname, 'node_modules');
-          await rmdir(targetHeaderDir);
-          await mkdir(targetHeaderDir);
-          await rmdir(targetModulesDir);
-          await mkdir(targetModulesDir);
-          await installNodeHeaders(version, null, targetHeaderDir);
-          let canary = await fs.stat(path.join(targetHeaderDir, '.node-gyp', version, 'common.gypi'));
-          expect(canary).to.be.ok
-
-          rmdir('mock-pkg-1');
-          const mockPkg = pkgMock.install({
-              nodeModulesDir: targetModulesDir,
-              package: {
-                  name: 'mock-pkg-1',
-                  scripts: { postinstall: `touch ${version}`} // npm build will run postinstall
-              }
-          });
-
-          await rebuildNativeModules({
-              nodeVersion: version,
-              nodeModulesPath: targetModulesDir,
-              headersDir: targetHeaderDir
-          });
-
-
-          let buildTestFile = await fs.stat(path.resolve(targetModulesDir, mockPkg.name, `${version}`));
-          expect(buildTestFile).to.be.ok
-
-          // clean up
-          await rmdir(targetModulesDir);
-          await rmdir(targetHeaderDir);
-      } catch(err) {
-          console.error(err.message);
-          console.log(err);
-      }
+// test fn constants
+var assertTestPkgBuiltFilePresent = _.partial(fileio.assertFilePresent, mockPkgBuiltFile);
+var installMockPackage = function() {
+    return pkgMock.install({
+        nodeModulesDir: targetModulesDir,
+        package: {
+            name: 'build-test-1',
+            scripts: { postinstall: [
+                'touch', mockPkgBuiltFile
+            ].join(' ') } // `npm build` executes postinstall
+        }
     });
-  }
+};
+var testInstallHeaders = function(ver) {
+    return installHeaders({
+        electronVersion: ver,
+        headersDir: targetHeaderDir,
+        nodeDistUrl: 'http://localhost:9009/test/local_headers',
+    });
+};
+var rmdirHeaders = _.partial(fileio.rmdir, targetHeaderDir);
+var rmdirModules = _.partial(fileio.rmdir, targetModulesDir);
+var mkdirHeaders = _.partial(fileio.mkdir, targetHeaderDir);
+var mkdirModules = _.partial(fileio.mkdir, targetModulesDir);
+var testInstallMockPkg = function() { mockPkg1 = installMockPackage({ nodeModulesDir: targetModulesDir }); };
+
+var server;
+
+test('before', { timeout: 60000 }, function(t) {
+    t.plan(1);
+
+    // build a server to server header files
+    // @TODO serve headers from local vs. making external network requrests
+    server = httpServer.createServer({
+        root: process.cwd(),
+        robots: true,
+        headers: {
+          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Credentials': 'true'
+        }
+    });
+    server.listen(9009);
+    bootstrap
+    .catch(function(err) {
+        t.fail(err);
+        process.exit(1);
+    })
+    .then(_.partial(t.pass, 'before ready'));
 });
 
-describe('shouldRebuild', function() {
-  this.timeout(60*1000);
+test('installHeaders', { timeout: 10000 }, function(t) {
+    var end = _.partial(t.pass, 'end');
+    var testHeaderVer = '0.25.2';
+    var testHeadersInstalled = function() {
+        return fs.statAsync(
+            path.join(targetHeaderDir, '.node-gyp', testHeaderVer, 'common.gypi')
+        )
+        .then(function() {
+            t.pass(testHeaderVer + ' header installed' );
+        });
+    };
 
-  it('should always return true most of the time maybe', async () => {
-    // Use the electron-prebuilt path
-    let pathDotText = path.join(
-      path.dirname(require.resolve('electron-prebuilt')),
-      'path.txt');
+    t.plan(2);
 
-    let electronPath = await fs.readFile(pathDotText, 'utf8');
-    let result = await shouldRebuild(electronPath);
+    Promise.resolve()
+    .then(rmdirHeaders)
+    .then(mkdirHeaders)
+    .then(_.partial(testInstallHeaders, testHeaderVer))
+    .then(testHeadersInstalled)
+    .then(rmdirHeaders)
+    .catch(t.fail)
+    .finally(end);
 
-    expect(result).to.be.ok;
-  });
 });
+
+test('rebuild', { timeout: 2000 }, function(t) {
+    var end = _.partial(t.pass, 'end');
+    var testHeaderVer = '0.31.2';
+    var testHeadersInstalled = function() {
+        return fs.statAsync(
+            path.join(
+                targetHeaderDir,
+                '.node-gyp',
+                testHeaderVer,
+                'common.gypi'
+            )
+        )
+        .then(_.partial(t.pass, testHeaderVer + ' header installed'));
+    };
+
+    t.plan(2);
+
+    Promise.resolve()
+    .then(mkdirModules)
+    .then(testInstallMockPkg)
+    .then(mkdirHeaders)
+    .then(_.partial(testInstallHeaders, testHeaderVer))
+    .then(testHeadersInstalled)
+    .then(_.partial(rebuild, {
+        electronVersion: testHeaderVer,
+        modulesDir: targetModulesDir,
+        headersDir: targetHeaderDir,
+    }))
+    .then(assertTestPkgBuiltFilePresent)
+    .then(rmdirModules)
+    .then(rmdirHeaders)
+    .catch(t.fail)
+    .finally(end);
+
+});
+
+test('shouldRebuild', { timeout: 20000 }, function(t) {
+    var end = _.partial(t.pass, 'end');
+    var pathDotText = path.join(
+        path.dirname(require.resolve('electron-prebuilt')),
+        'path.txt'
+    );
+
+    t.plan(2);
+
+    Promise.resolve()
+    .then(function() {
+        return fs.readFileAsync(pathDotText, 'utf8');
+    })
+    .then(shouldRebuild)
+    .then(function assertShouldRebuild(result) {
+        t.ok(result, 'should rebuild modules');
+        // t.skip('@TODO make this test meaningful!');
+    })
+    .catch(t.fail)
+    .then(end);
+
+});
+
+test('end', { timeout: 3000 }, function(t) {
+    server.close();
+    t.end();
+});
+
+module.exports = {
+    installHeaders: installHeaders
+};
