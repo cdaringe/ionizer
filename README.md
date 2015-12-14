@@ -17,7 +17,8 @@ For example, suppose
 - you install `npm install --save node-sass`
 - you `require('node-sass')` into you electron application and run it...
 - YOUR APP CRASHES! :(  `node-sass` was built for `0.12.7 (module version 14)`, not for `2.5.0 (module version 44)`
-- you run `ionizer -q`, and reload your app.  All is zen!
+- you run `ionizer -q`, which rebuilds your dependencies to work with your electron version.
+- reload your app.  All is zen!
 
 ## installation
 ```sh
@@ -84,7 +85,7 @@ ionizer.shouldRebuild('/Users/username/ ... /Electron'); // electron path, see ]
 ```
 
 ## options
-As demonstrated above, this package supports two modes:
+as demonstrated above, this package supports two modes:
 
 1. CLI mode
 1. package mode
@@ -98,7 +99,7 @@ ionizer works, but it's in beta.  despite the API not being published formally n
 it _will_ change in 2.0.0.  expect at least new method names.  the CLI options are not anticipated to change @2.0.0.
 
 ### fork'n'h4ck3d
-ionizer was initially a fork off of [shouldRebuild](electronjs/electronjs-rebuild), so make sure to give those guys a shout out.  this package was created to improve performance, development experience, and add some features.  Some dependencies _will build with ionizer_ that _won't build with electron-rebuild_, although windows support is still lacking in ionizer (help requested for `squish-squash` windows support!).  Notable differences between the packages are:
+ionizer was initially a fork off of [electron-rebuild](electronjs/electronjs-rebuild), so make sure to give those guys a shout out.  this package was created to improve performance, development experience, and add some features.  Some dependencies _will build with ionizer_ that _won't build with electron-rebuild_, although windows support is still lacking in ionizer (help requested for add windows support to [squish-squash](https://github.com/cdaringe/squish-squash)).  Notable differences between the packages are:
 
 1. more reliable rebuilds.  ionizer runs the _actual_ electron node process when rebuilding packages
 1. faster rebuilds.  rather than rebuilding your entire node_modules, you can limit the builds to certain packages, and keep a record/cache of those packages that have already been rebuilt (so as to not redundantly rebuild them).
@@ -110,9 +111,7 @@ ionizer was initially a fork off of [shouldRebuild](electronjs/electronjs-rebuil
 - [ ] windows support (`squash-squash`)
 - [ ] support building against global electron (vs. electron-prebuilt or loose binary)
 - [ ] add doc blocks and gen API docs
-- [ ] precommit-hook for lint, format, test
-- [ ] simplify method names
-- [ ] purge test artifacts
+- [ ] fix test ECONN issue for connecting to local file server
 - [ ] general API tidy!
 
 [cdaringe.com](http://www.cdaringe.com)

@@ -38,7 +38,7 @@ module.exports = {
             'file present when file should not be present:',
             path
         ].join(' '));
-        err.code = 'EFILEBOGUS'
+        err.code = 'EFILEBOGUS';
         throw err;
     },
 

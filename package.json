@@ -4,7 +4,14 @@
   "description": "Electron supporting package to rebuild native node modules against the electron",
   "main": "lib/main.js",
   "scripts": {
-    "test": "node test/index.js | faucet"
+    "test": "node test/index.js | faucet",
+    "lint": "jshint .",
+    "validate": "npm ls",
+    "preversion": "git checkout master && git pull && npm ls",
+    "publish-patch": "npm run preversion && npm version patch && git push origin master --tags && npm publish",
+    "publish-minor": "npm run preversion && npm version minor && git push origin master --tags && npm publish",
+    "publish-major": "npm run preversion && npm version major && git push origin master --tags && npm publish"
+
   },
   "bin": {
     "ionizer": "lib/cli.js"
@@ -41,6 +48,12 @@
     "hapi": "^11.1.2",
     "http-server": "^0.8.5",
     "inert": "^3.2.0",
-    "mock-npm-install": "^1.0.4"
-  }
+    "mock-npm-install": "^1.0.4",
+    "precommit-hook": "^3.0.0"
+  },
+  "pre-commit": [
+    "lint",
+    "validate",
+    "test"
+  ]
 }

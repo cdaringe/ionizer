@@ -8,6 +8,10 @@ var app = require('ampersand-app');
 var fs = require('fs');
 var fileio = require('./fileio.js');
 
+var getHeadersDir = function() {
+    return path.resolve(process.cwd(), 'test/local_headers/');
+};
+
 var buildDistFolder = function(ver) {
     return fileio.mkdir(path.join(
         getHeadersDir(),
@@ -15,9 +19,6 @@ var buildDistFolder = function(ver) {
     ));
 };
 
-var getHeadersDir = function() {
-    return path.resolve(process.cwd(), 'test/local_headers/');
-};
 
 var getHeaderPath = function(ver) {
     return path.resolve(
@@ -73,13 +74,13 @@ var upsertHeaders = function(ver) {
             .then(_.partial(wgetHeaders, ver));
         }
         throw err;
-    })
+    });
 };
 
 var bootReady;
 module.exports = function init(t) {
     if (bootReady) { return bootReady; }
-    var assignBootReady = function() { bootReady = Promise.resolve(); }
+    var assignBootReady = function() { bootReady = Promise.resolve(); };
     return Promise.resolve()
     .then(_.partial(fileio.rmdir, app.targetModulesDir))
     .then(_.partial(upsertHeaders, '0.25.2'))

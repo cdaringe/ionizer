@@ -34,7 +34,7 @@ server.register(require('inert'), function (err) {
 });
 
 app.server = server;
-consumers = 0;
+var consumers = 0;
 app.incrimentConsumer = function() {
     if (!consumers) {
         server.start(function() {
@@ -47,7 +47,7 @@ app.decrimentConsumer = function() {
     consumers -= 1;
     if (!consumers) {
         server.stop({ timeout: 0 }, function() {
-            console.log('server closing, no more consumes');
+            console.log('server closing, no more consumers');
         });
     }
 };
