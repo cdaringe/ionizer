@@ -1,6 +1,6 @@
 var _ = require('lodash');
-var fs = Promise.promisifyAll(require('fs'));
-var rimraf = Promise.promisify(require('rimraf'));
+var rimraf = require('rimraf');
+var fs = require('fs');
 
 module.exports = {
     rmdir: function(dir) {
