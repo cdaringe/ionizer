@@ -1,5 +1,6 @@
 var path = require('path');
 var globals = require(path.resolve(process.cwd(), './lib/utils/define-globals.js'))();
+var spawn = require(path.join(process.cwd(), 'lib/utils/spawn.js'));
 require('./env-setup-teardown.js'); // load test constants onto `app`
 require('./boot-server.js');
 
@@ -40,7 +41,6 @@ var getHeaderUrl = function(ver, dir) {
 };
 
 var wgetHeaders = function(ver) {
-    var spawn = require(path.join(process.cwd(), 'lib/spawn.js'));
     var argsHeaders = [ '-O', getHeaderPath(ver), getHeaderUrl(ver) ];
     var getHeaders = _.partial(spawn, {
         cmd: 'wget',
