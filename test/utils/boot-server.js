@@ -15,39 +15,39 @@ var _ = require('lodash');
 // });
 // server.listen(9009);
 
-var hapi = require('hapi');
+// var hapi = require('hapi');
+//
+// var server = new hapi.Server();
+// server.connection({ port: 9009 });
+// server.register(require('inert'), function (err) {
+//     server.route({
+//         method: 'GET',
+//         path: '/{param*}',
+//         handler: {
+//             directory: {
+//                 path: './',
+//                 listing: true,
+//                 showHidden: true
+//             }
+//         }
+//     });
+// });
 
-var server = new hapi.Server();
-server.connection({ port: 9009 });
-server.register(require('inert'), function (err) {
-    server.route({
-        method: 'GET',
-        path: '/{param*}',
-        handler: {
-            directory: {
-                path: './',
-                listing: true,
-                showHidden: true
-            }
-        }
-    });
-});
-
-app.server = server;
+// app.server = server;
 var consumers = 0;
 app.incrimentConsumer = function() {
     if (!consumers) {
-        server.start(function() {
-            console.log('server running at: ' + server.info.uri);
-        });
+        // server.start(function() {
+        //     console.log('server running at: ' + server.info.uri);
+        // });
     }
     consumers += 1;
 };
 app.decrimentConsumer = function() {
     consumers -= 1;
     if (!consumers) {
-        server.stop({ timeout: 0 }, function() {
-            console.log('server closing, no more consumers');
-        });
+        // server.stop({ timeout: 0 }, function() {
+        //     console.log('server closing, no more consumers');
+        // });
     }
 };
