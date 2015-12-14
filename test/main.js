@@ -58,7 +58,7 @@ test('rebuild', { timeout: 10000 }, function(t) {
 
 });
 
-test('shouldRebuild', { timeout: 5000 }, function(t) {
+test('shouldRebuild', { timeout: 20000 }, function(t) {
     t.plan(1);
 
     return Promise.resolve()
