@@ -1,7 +1,7 @@
 {
   "name": "ionizer",
   "version": "1.0.1",
-  "description": "Electron supporting package to rebuild native node modules against the electron",
+  "description": "rebuild native node modules against the electron runtime",
   "main": "lib/main.js",
   "scripts": {
     "test": "node test/index.js | faucet",
@@ -42,7 +42,7 @@
   "devDependencies": {
     "ampersand-app": "^1.0.4",
     "commander": "^2.9.0",
-    "electron-prebuilt": "^0.31.2",
+    "electron-prebuilt": "^0.35.4",
     "faucet": "0.0.1",
     "http-server": "^0.8.5",
     "mock-npm-install": "^1.0.4",
