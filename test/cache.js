@@ -1,5 +1,6 @@
-var bootstrap = require('./utils/bootstrap.js');
+var bootstrap = require('./utils/bootstrap.js'); // immediately registers globals, returns Promise
 var _ = require('lodash');
+var app = require('ampersand-app');
 var fs = require('fs');
 var path = require('path');
 var pkgMock = require('mock-npm-install');
@@ -7,7 +8,9 @@ var spawn = require('../lib/utils/spawn.js');
 var fileio = require('./utils/fileio.js');
 var cacher = require('../lib/cache.js');
 var ionizer = require('../lib/main.js');
-
+var ePath = require('electron-prebuilt');
+var electronUtil = require('../lib/utils/electron.js');
+var testEnv =  require('./utils/env-setup-teardown.js');
 var test = require('tape');
 
 // bulk define local, cache-test constants
@@ -17,13 +20,12 @@ var mockPkgDir = path.resolve(targetModulesDir, 'build-test-1');
 var mockPkgBuiltFile = path.resolve(mockPkgDir, 'build-test-file');
 var cachePath = cacher.getPackageCachePath(targetModulesDir);
 var downsertTestCache = _.partial(cacher.downsertCache, targetModulesDir);
-var moduleVersionToTest = '0.31.2';
 var rebuildQuickConfig = {
-    targetVersion: moduleVersionToTest,
-    modulesDir: targetModulesDir,
-    headersDir: targetHeaderDir,
+    modulesDir: app.targetModulesDir,
+    headersDir: app.targetHeaderDir,
     quick: true,
 };
+
 var rebuildQuickConfigIgnore = _.assign({}, rebuildQuickConfig, { ignore: 'build-test-1' });
 var mockPkg1;
 var mockPkg2;
@@ -34,12 +36,14 @@ var assertTestPkgBuiltFilePresent = _.partial(fileio.assertFilePresent, mockPkgB
 var assertTestPkgBuiltFileNotPresent = _.partial(fileio.assertFileNotPresent, mockPkgBuiltFile);
 var installMockPackage = function() {
     return pkgMock.install({
-        nodeModulesDir: targetModulesDir,
+        nodeModulesDir: app.targetModulesDir,
         package: {
             name: 'build-test-1',
-            scripts: { postinstall: [
-                'touch', mockPkgBuiltFile
-            ].join(' ') } // `npm build` executes postinstall
+            scripts: {
+                postinstall: [
+                    'touch', mockPkgBuiltFile // `npm build` executes postinstall
+                ].join(' ')
+            }
         }
     });
 };
@@ -59,60 +63,78 @@ var mkdirModules = _.partial(fileio.mkdir, targetModulesDir);
 var removeTestPkgBuiltFile = _.partial(fs.unlinkSync, mockPkgBuiltFile);
 var rmdirHeaders = _.partial(fileio.rmdir, targetHeaderDir);
 var rmdirModules = _.partial(fileio.rmdir, targetModulesDir);
-var testInstallMockPkg = function() { mockPkg1 = installMockPackage({ nodeModulesDir: targetModulesDir }); };
+var testInstallMockPkg = function() {
+    mockPkg1 = installMockPackage({ nodeModulesDir: targetModulesDir });
+};
 var testInstallMockPkg2 = function() { mockPkg2 = installMockPackage2({ nodeModulesDir: targetModulesDir }); };
 var testRemoveMockPkg = function() {
     pkgMock.remove({ nodeModulesDir: targetModulesDir, name: mockPkg1.name });
 };
-var testInstallNodeHeaders = function() { return ionizer.installHeaders(moduleVersionToTest, null, targetHeaderDir); };
+var testInstallHeaders = function(ver) {
+    return installHeaders({
+        electronVersion: ver,
+        headersDir: targetHeaderDir,
+        // nodeDistUrl: 'http://localhost:9009/test/local_headers',
+    });
+};
 var testParseCache = function() { return JSON.parse(fs.readFileSync(cachePath)); };
 var testRebuildNativeQuick = _.partial(ionizer.rebuild, rebuildQuickConfig);
 var testRebuildNativeQuickIgnore = _.partial(ionizer.rebuild, rebuildQuickConfigIgnore);
 
-test('before', { timeout: 20000 }, function(t) {
+var testHeaderVer;
+
+test('before - cache', { timeout: 20000 }, function(t) {
+    app.incrimentConsumer();
     Promise.resolve()
-    .then(function() { return bootstrap; })
-    .then(mkdirHeaders)
-    .then(testInstallNodeHeaders)
-    .finally(t.end);
+    .then(testEnv.teardown)
+    .catch(_.noop)
+    .then(bootstrap)
+    .catch(t.fail)
+    .then(t.end);
 });
 
-test('quick mode - basic', { timeout: 20000 }, function(t) {
-    t.plan(4);
-
-    var end = _.partial(t.pass, 'end');
+test('quick mode - basic', { timeout: 60000 }, function(t) {
+    t.plan(3);
 
     // exec test
     Promise.resolve()
-    .then(mkdirModules)
+    .then(testEnv.setup)
     .then(testInstallMockPkg)
     .then(testRebuildNativeQuick)
     .then(function assertFileStats() {
         // assert that mock package build process run successfully
         t.ok(fs.statSync(mockPkgBuiltFile), 'mock build file generated successfully');
-
         // assert that rebuild-cache built successfully
         t.ok(fs.statSync(cachePath), 'cache built successfully');
         return cacher.getCachedBuildVersions(targetModulesDir).then(function(cachedContent) {
-            t.equal(cachedContent[0].nodeVersion, moduleVersionToTest, 'cached version matches specified cache-to-version');
+            t.equal(
+                cachedContent[0].nodeVersion,
+                app.electronVersion,
+                'cached version matches specified cache-to-version'
+            );
         });
     })
-    .then(rmdirModules)
     .then(downsertTestCache)
+    .then(testEnv.teardown)
     .catch(t.fail)
-    .finally(end);
+    .then(t.end);
 
 });
 
 test('quick mode - multi dependent package, deps installed different times', { timeout: 20000 }, function(t) {
-    t.plan(4);
-
-    var end = _.partial(t.pass, 'end');
     var mock1BuildCtime;
 
+    t.plan(3);
+
     // exec test
-    Promise.resolve()
-    .then(mkdirModules)
+    return Promise.resolve()
+    .then(function() {
+        debugger;
+        return testEnv.setup();
+    })
+    .then(function() {
+        debugger;
+    })
     .then(testInstallMockPkg)
     .then(testRebuildNativeQuick)
     .then(function assertFileStats() {
@@ -130,15 +152,11 @@ test('quick mode - multi dependent package, deps installed different times', { t
     .then(rmdirModules)
     .then(downsertTestCache)
     .catch(t.fail)
-    .finally(end);
+    .then(t.end);
 
 });
 
 test('quick mode - no rebuild post-cache', { timeout: 10000 }, function(t) {
-    t.plan(3);
-
-    var end = _.partial(t.pass, 'end');
-
     var ctime_firstbuild;
     var setCtimeFirstBuild = function() {
         var cache = testParseCache();
@@ -151,9 +169,11 @@ test('quick mode - no rebuild post-cache', { timeout: 10000 }, function(t) {
         t.equal(ctime_firstbuild, ctime_secondbuild, 'built file not rebuilt if module was in cache');
     };
 
+    t.plan(2);
+
     // assert that rebuild run again does not rebuild module after cached
     Promise.resolve()
-    .then(mkdirModules)
+    .then(testEnv.setup)
     .then(testInstallMockPkg)
     .then(testRebuildNativeQuick)
     .then(setCtimeFirstBuild)
@@ -163,15 +183,11 @@ test('quick mode - no rebuild post-cache', { timeout: 10000 }, function(t) {
     .then(rmdirModules)
     .then(downsertTestCache)
     .catch(t.fail)
-    .finally(end);
+    .then(t.end);
 
 });
 
 test('quick mode - recache, rebuild post- package folder touch', { timeout: 10000 }, function(t) {
-    t.plan(3);
-
-    var end = _.partial(t.pass, 'end');
-
     var ctime_oldfolder;
     var setOldFolderCtime = function() { ctime_oldfolder = fs.statSync(mockPkgDir).ctime.toISOString(); };
     var ctime_newfolder;
@@ -183,6 +199,8 @@ test('quick mode - recache, rebuild post- package folder touch', { timeout: 1000
     var testBuildFileExists = function() {
         t.ok(fs.statSync(mockPkgBuiltFile), 'test file rebuilt after folder modified');
     };
+
+    t.plan(2);
 
     // assert that module updates after node_modules/build-test folder modified
     Promise.resolve()
@@ -199,14 +217,11 @@ test('quick mode - recache, rebuild post- package folder touch', { timeout: 1000
     .then(rmdirModules)
     .then(downsertTestCache)
     .catch(t.fail)
-    .finally(end);
+    .finally(t.end);
 
 });
 
 test('quick mode - ignore', { timeout: 10000 }, function(t) {
-    t.plan(1);
-
-    var end = _.partial(t.pass, 'end');
     Promise.resolve()
     .then(mkdirModules)
     .then(testInstallMockPkg)
@@ -215,6 +230,11 @@ test('quick mode - ignore', { timeout: 10000 }, function(t) {
     .then(rmdirModules)
     // .then(downsertTestCache) // no cache exists, so don't downsert!
     .catch(t.fail)
-    .finally(end);
+    .finally(t.end);
 
+});
+
+test('end - cache', function(t) {
+    app.decrimentConsumer();
+    t.end();
 });

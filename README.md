@@ -25,9 +25,11 @@ npm install --save-dev ionizer
 ```
 
 ## basic usage
+I recommend installing `electron-prebuilt` into your package for no-brainer rebuilds, and using that version controlled binary for development if you can!  `ionizer` first tests for `electron-prebuilt` in your project and will rebuild to be compatible with that. `npm install --save electron-prebuilt`.
+
 Whenever you install a new npm package into your electron project, rerun ionizer:
 
-```sh
+```json2
 // package.json
 {
     ...
@@ -93,20 +95,20 @@ The API while using as a package does not have a full doc set yet--please see th
 
 ### beta
 ionizer works, but it's in beta.  despite the API not being published formally now,
-it _will_ change in 2.0.0.  expect at the least new method names.  the CLI options
-set is not anticipated to change at 2.0.0.
+it _will_ change in 2.0.0.  expect at least new method names.  the CLI options are not anticipated to change @2.0.0.
 
 ### fork'n'h4ck3d
 ionizer was initially a fork off of [shouldRebuild](electronjs/electronjs-rebuild), so make sure to give those guys a shout out.  this package was created to improve performance, development experience, and add some features.  Some dependencies _will build with ionizer_ that _won't build with electron-rebuild_, although windows support is still lacking in ionizer (help requested for `squish-squash` windows support!).  Notable differences between the packages are:
 
-1. less dependencies
-1. pure es5. no es6 compilation required for compatibility
+1. more reliable rebuilds.  ionizer runs the _actual_ electron node process when rebuilding packages
+1. faster rebuilds.  rather than rebuilding your entire node_modules, you can limit the builds to certain packages, and keep a record/cache of those packages that have already been rebuilt (so as to not redundantly rebuild them).
+1. pure es5. no es6 compilation required for backwards compatibility
   1. improves testing, building, & distribution speed
-1. faster tests.  network tests are mocked out. once basic resources are cached. differing philosophies between projects
+1. faster tests.  network tests are mocked out. once basic resources are cached.
 
 # todo
 - [ ] windows support (`squash-squash`)
-- [ ] build against global electron support (vs. electron-prebuilt)
+- [ ] support building against global electron (vs. electron-prebuilt or loose binary)
 - [ ] add doc blocks and gen API docs
 - [ ] precommit-hook for lint, format, test
 - [ ] simplify method names

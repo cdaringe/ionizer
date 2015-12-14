@@ -4,15 +4,13 @@ var rimraf = Promise.promisify(require('rimraf'));
 
 module.exports = {
     rmdir: function(dir) {
-        return rimraf(dir);
+        return rimraf.sync(dir);
     },
 
     mkdir: function(dir) {
-        var mkdir = function() {
-            return fs.mkdirAsync(dir);
-        };
-        return mkdir().catch(function(err) {
-            if (err === 'EEXIST' || err.code === 'EEXIST') {
+        return fs.mkdirAsync(dir)
+        .catch(function(err) {
+            if (err.code === 'EEXIST') {
                 return;
             }
             throw err;

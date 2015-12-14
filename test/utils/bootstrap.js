@@ -1,12 +1,12 @@
 var path = require('path');
-require(path.resolve(process.cwd(), './lib/utils/define-globals.js'))();
+var globals = require(path.resolve(process.cwd(), './lib/utils/define-globals.js'))();
+require('./env-setup-teardown.js'); // load test constants onto `app`
+require('./boot-server.js');
+
 var _ = require('lodash');
 var app = require('ampersand-app');
 var fs = require('fs');
 var fileio = require('./fileio.js');
-
-app.targetHeaderDir = path.join(process.cwd(), 'test/testheaders');
-app.targetModulesDir = path.join(process.cwd(), 'test/node_modules');
 
 var buildDistFolder = function(ver) {
     return fileio.mkdir(path.join(
@@ -76,15 +76,15 @@ var upsertHeaders = function(ver) {
     })
 };
 
-var ready;
-module.exports = ready || (function init() {
-    ready = Promise.resolve()
-    .then(function() {
-        return fileio.rmdir(app.targetModulesDir);
-    })
-    //.then(_.partial(fileio.rmdir, app.targetModulesDir))
+var bootReady;
+module.exports = function init(t) {
+    if (bootReady) { return bootReady; }
+    var assignBootReady = function() { bootReady = Promise.resolve(); }
+    return Promise.resolve()
+    .then(_.partial(fileio.rmdir, app.targetModulesDir))
     .then(_.partial(upsertHeaders, '0.25.2'))
     .then(_.partial(upsertHeaders, '0.27.2'))
     .then(_.partial(upsertHeaders, '0.31.2'))
-    return ready;
-})();
+    .then(_.partial(require('./env-setup-teardown.js').setup))
+    .then(assignBootReady);
+};
