@@ -1,6 +1,6 @@
 var _ = require('lodash');
-var fs = Promise.promisifyAll(require('fs'));
-var rimraf = Promise.promisify(require('rimraf'));
+var rimraf = require('rimraf');
+var fs = require('fs');
 
 module.exports = {
     rmdir: function(dir) {
@@ -38,7 +38,7 @@ module.exports = {
             'file present when file should not be present:',
             path
         ].join(' '));
-        err.code = 'EFILEBOGUS'
+        err.code = 'EFILEBOGUS';
         throw err;
     },
 

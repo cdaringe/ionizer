@@ -1,10 +1,16 @@
 {
   "name": "ionizer",
-  "version": "0.0.1",
-  "description": "Electron supporting package to rebuild native node modules against the electron",
+  "version": "1.0.4",
+  "description": "rebuild native node modules against the electron runtime",
   "main": "lib/main.js",
   "scripts": {
-    "test": "node test/index.js | faucet"
+    "test": "node test/index.js | faucet",
+    "lint": "jshint .",
+    "validate": "npm ls",
+    "preversion": "git checkout master && git pull && npm ls",
+    "publish-patch": "npm run preversion && npm version patch && git push origin master --tags && npm publish",
+    "publish-minor": "npm run preversion && npm version minor && git push origin master --tags && npm publish",
+    "publish-major": "npm run preversion && npm version major && git push origin master --tags && npm publish"
   },
   "bin": {
     "ionizer": "lib/cli.js"
@@ -23,22 +29,28 @@
   },
   "homepage": "https://github.com/cdaringe/ionizer",
   "dependencies": {
-    "bluebirdify": "^1.1.0",
-    "lodash": "^3.10.1",
-    "ncp": "^2.0.0",
+    "bluebirdify": "1.1.0",
+    "lodash": "3.10.1",
+    "ncp": "2.0.0",
     "npm": "2.14.14",
-    "rimraf": "^2.4.3",
-    "squish-squash": "^1.0.2",
-    "tape": "^4.2.1",
-    "winston": "^2.1.1",
-    "yargs": "^3.23.0"
+    "rimraf": "2.4.3",
+    "squish-squash": "1.0.3",
+    "tape": "4.2.1",
+    "winston": "2.1.1",
+    "yargs": "3.23.0"
   },
   "devDependencies": {
-    "ampersand-app": "^1.0.4",
-    "commander": "^2.9.0",
-    "electron-prebuilt": "^0.31.2",
+    "ampersand-app": "1.0.4",
+    "commander": "2.9.0",
+    "electron-prebuilt": "0.35.4",
     "faucet": "0.0.1",
-    "http-server": "^0.8.5",
-    "mock-npm-install": "^1.0.4"
-  }
+    "http-server": "0.8.5",
+    "mock-npm-install": "1.0.4",
+    "precommit-hook": "3.0.0"
+  },
+  "pre-commit": [
+    "lint",
+    "validate",
+    "test"
+  ]
 }

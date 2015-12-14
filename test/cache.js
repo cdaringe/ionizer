@@ -70,13 +70,6 @@ var testInstallMockPkg2 = function() { mockPkg2 = installMockPackage2({ nodeModu
 var testRemoveMockPkg = function() {
     pkgMock.remove({ nodeModulesDir: targetModulesDir, name: mockPkg1.name });
 };
-var testInstallHeaders = function(ver) {
-    return installHeaders({
-        electronVersion: ver,
-        headersDir: targetHeaderDir,
-        // nodeDistUrl: 'http://localhost:9009/test/local_headers',
-    });
-};
 var testParseCache = function() { return JSON.parse(fs.readFileSync(cachePath)); };
 var testRebuildNativeQuick = _.partial(ionizer.rebuild, rebuildQuickConfig);
 var testRebuildNativeQuickIgnore = _.partial(ionizer.rebuild, rebuildQuickConfigIgnore);
@@ -121,20 +114,14 @@ test('quick mode - basic', { timeout: 60000 }, function(t) {
 
 });
 
-test('quick mode - multi dependent package, deps installed different times', { timeout: 20000 }, function(t) {
+test('quick mode - multi dependent package, deps installed different times', { timeout: 60000 }, function(t) {
     var mock1BuildCtime;
 
     t.plan(3);
 
     // exec test
     return Promise.resolve()
-    .then(function() {
-        debugger;
-        return testEnv.setup();
-    })
-    .then(function() {
-        debugger;
-    })
+    .then(testEnv.setup)
     .then(testInstallMockPkg)
     .then(testRebuildNativeQuick)
     .then(function assertFileStats() {
@@ -156,7 +143,7 @@ test('quick mode - multi dependent package, deps installed different times', { t
 
 });
 
-test('quick mode - no rebuild post-cache', { timeout: 10000 }, function(t) {
+test('quick mode - no rebuild post-cache', { timeout: 60000 }, function(t) {
     var ctime_firstbuild;
     var setCtimeFirstBuild = function() {
         var cache = testParseCache();
@@ -187,7 +174,7 @@ test('quick mode - no rebuild post-cache', { timeout: 10000 }, function(t) {
 
 });
 
-test('quick mode - recache, rebuild post- package folder touch', { timeout: 10000 }, function(t) {
+test('quick mode - recache, rebuild post- package folder touch', { timeout: 60000 }, function(t) {
     var ctime_oldfolder;
     var setOldFolderCtime = function() { ctime_oldfolder = fs.statSync(mockPkgDir).ctime.toISOString(); };
     var ctime_newfolder;
@@ -221,7 +208,7 @@ test('quick mode - recache, rebuild post- package folder touch', { timeout: 1000
 
 });
 
-test('quick mode - ignore', { timeout: 10000 }, function(t) {
+test('quick mode - ignore', { timeout: 60000 }, function(t) {
     Promise.resolve()
     .then(mkdirModules)
     .then(testInstallMockPkg)

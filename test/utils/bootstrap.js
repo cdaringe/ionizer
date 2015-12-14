@@ -1,5 +1,6 @@
 var path = require('path');
 var globals = require(path.resolve(process.cwd(), './lib/utils/define-globals.js'))();
+var spawn = require(path.join(process.cwd(), 'lib/utils/spawn.js'));
 require('./env-setup-teardown.js'); // load test constants onto `app`
 require('./boot-server.js');
 
@@ -8,6 +9,10 @@ var app = require('ampersand-app');
 var fs = require('fs');
 var fileio = require('./fileio.js');
 
+var getHeadersDir = function() {
+    return path.resolve(process.cwd(), 'test/local_headers/');
+};
+
 var buildDistFolder = function(ver) {
     return fileio.mkdir(path.join(
         getHeadersDir(),
@@ -15,9 +20,6 @@ var buildDistFolder = function(ver) {
     ));
 };
 
-var getHeadersDir = function() {
-    return path.resolve(process.cwd(), 'test/local_headers/');
-};
 
 var getHeaderPath = function(ver) {
     return path.resolve(
@@ -39,7 +41,6 @@ var getHeaderUrl = function(ver, dir) {
 };
 
 var wgetHeaders = function(ver) {
-    var spawn = require(path.join(process.cwd(), 'lib/spawn.js'));
     var argsHeaders = [ '-O', getHeaderPath(ver), getHeaderUrl(ver) ];
     var getHeaders = _.partial(spawn, {
         cmd: 'wget',
@@ -73,13 +74,16 @@ var upsertHeaders = function(ver) {
             .then(_.partial(wgetHeaders, ver));
         }
         throw err;
-    })
+    });
 };
 
 var bootReady;
 module.exports = function init(t) {
     if (bootReady) { return bootReady; }
-    var assignBootReady = function() { bootReady = Promise.resolve(); }
+    var assignBootReady = function() {
+        bootReady = Promise.resolve();
+        return bootReady;
+    };
     return Promise.resolve()
     .then(_.partial(fileio.rmdir, app.targetModulesDir))
     .then(_.partial(upsertHeaders, '0.25.2'))

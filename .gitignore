@@ -27,3 +27,4 @@ build/Release
 node_modules
 
 test/local_headers
+lib/headers
