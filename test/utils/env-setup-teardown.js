@@ -21,10 +21,11 @@ var exports = {
     },
 
     _setAndTestHeaderVersion: function(ver) {
-        app.electronVersion = ver;
-        if (!ver.match(/^\d+\.\d+\.\d+/)) {
+        var matches = ver.match(/^\d+\.\d+\.\d+/);
+        if (!matches || !matches[0]) {
             throw new ReferenceError('version to install headers for extracted from electron binary');
         }
+        app.electronVersion = matches[0];
     },
 
     _testHeadersInstalled: function() {
