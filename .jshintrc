@@ -1,0 +1,16 @@
+{
+  "eqeqeq": true,
+  "eqnull": true,
+  "expr": true,
+  "latedef": true,
+  "onevar": true,
+  "noarg": true,
+  "node": true,
+  "undef": true,
+  "unused": false,
+  "browser": true,
+  "globals": {
+    "Promise"   : true,
+    "toString": true
+  }
+}
