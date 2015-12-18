@@ -114,7 +114,7 @@ test('quick mode - basic', { timeout: 60000 }, function(t) {
 
 });
 
-test('quick mode - multi dependent package, deps installed different times', { timeout: 20000 }, function(t) {
+test('quick mode - multi dependent package, deps installed different times', { timeout: 60000 }, function(t) {
     var mock1BuildCtime;
 
     t.plan(3);
@@ -143,7 +143,7 @@ test('quick mode - multi dependent package, deps installed different times', { t
 
 });
 
-test('quick mode - no rebuild post-cache', { timeout: 20000 }, function(t) {
+test('quick mode - no rebuild post-cache', { timeout: 60000 }, function(t) {
     var ctime_firstbuild;
     var setCtimeFirstBuild = function() {
         var cache = testParseCache();
@@ -174,7 +174,7 @@ test('quick mode - no rebuild post-cache', { timeout: 20000 }, function(t) {
 
 });
 
-test('quick mode - recache, rebuild post- package folder touch', { timeout: 10000 }, function(t) {
+test('quick mode - recache, rebuild post- package folder touch', { timeout: 60000 }, function(t) {
     var ctime_oldfolder;
     var setOldFolderCtime = function() { ctime_oldfolder = fs.statSync(mockPkgDir).ctime.toISOString(); };
     var ctime_newfolder;
@@ -208,7 +208,7 @@ test('quick mode - recache, rebuild post- package folder touch', { timeout: 1000
 
 });
 
-test('quick mode - ignore', { timeout: 10000 }, function(t) {
+test('quick mode - ignore', { timeout: 60000 }, function(t) {
     Promise.resolve()
     .then(mkdirModules)
     .then(testInstallMockPkg)

@@ -80,7 +80,10 @@ var upsertHeaders = function(ver) {
 var bootReady;
 module.exports = function init(t) {
     if (bootReady) { return bootReady; }
-    var assignBootReady = function() { bootReady = Promise.resolve(); };
+    var assignBootReady = function() {
+        bootReady = Promise.resolve();
+        return bootReady;
+    };
     return Promise.resolve()
     .then(_.partial(fileio.rmdir, app.targetModulesDir))
     .then(_.partial(upsertHeaders, '0.25.2'))

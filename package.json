@@ -29,24 +29,24 @@
   },
   "homepage": "https://github.com/cdaringe/ionizer",
   "dependencies": {
-    "bluebirdify": "^1.1.0",
-    "lodash": "^3.10.1",
-    "ncp": "^2.0.0",
+    "bluebirdify": "1.1.0",
+    "lodash": "3.10.1",
+    "ncp": "2.0.0",
     "npm": "2.14.14",
-    "rimraf": "^2.4.3",
-    "squish-squash": "^1.0.3",
-    "tape": "^4.2.1",
-    "winston": "^2.1.1",
-    "yargs": "^3.23.0"
+    "rimraf": "2.4.3",
+    "squish-squash": "1.0.3",
+    "tape": "4.2.1",
+    "winston": "2.1.1",
+    "yargs": "3.23.0"
   },
   "devDependencies": {
-    "ampersand-app": "^1.0.4",
-    "commander": "^2.9.0",
-    "electron-prebuilt": "^0.35.4",
+    "ampersand-app": "1.0.4",
+    "commander": "2.9.0",
+    "electron-prebuilt": "0.35.4",
     "faucet": "0.0.1",
-    "http-server": "^0.8.5",
-    "mock-npm-install": "^1.0.4",
-    "precommit-hook": "^3.0.0"
+    "http-server": "0.8.5",
+    "mock-npm-install": "1.0.4",
+    "precommit-hook": "3.0.0"
   },
   "pre-commit": [
     "lint",
