@@ -11,7 +11,7 @@ var testEnv =  require('./utils/env-setup-teardown.js');
 
 var cp = Promise.promisify(require('ncp').ncp);
 
-test('before', { timeout: 20000 }, function(t) {
+test('before', { timeout: 1e6 }, function(t) {
     app.incrimentConsumer();
     Promise.resolve()
     .then(bootstrap)
@@ -23,7 +23,7 @@ test('installHeaders', function(t) {
     t.end();
 });
 
-test('rebuild', { timeout: 20000 }, function(t) {
+test('rebuild', { timeout: 1e6 }, function(t) {
     var mockPkgBuiltFile = path.resolve(app.targetModulesDir, 'build-test-1', 'build-test-file');
     var assertTestPkgBuiltFilePresent = function() {
         fileio.assertFilePresent(mockPkgBuiltFile);
@@ -58,7 +58,7 @@ test('rebuild', { timeout: 20000 }, function(t) {
 
 });
 
-test('shouldRebuild', { timeout: 20000 }, function(t) {
+test('shouldRebuild', { timeout: 1e6 }, function(t) {
     t.plan(1);
 
     return Promise.resolve()

@@ -21,6 +21,8 @@ For example, suppose
 - reload your app.  all is zen!
 
 ## installation
+This package is hosted on [npm](npm/npm).  See the [ionizer package page](https://www.npmjs.com/package/ionizer).
+
 ```sh
 npm install --save-dev ionizer
 ```
