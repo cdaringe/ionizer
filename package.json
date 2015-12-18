@@ -1,6 +1,6 @@
 {
   "name": "ionizer",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "rebuild native node modules against the electron runtime",
   "main": "lib/main.js",
   "scripts": {
