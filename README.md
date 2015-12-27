@@ -117,4 +117,8 @@ ionizer was initially a fork off of [electron-rebuild](electronjs/electronjs-reb
 - [ ] support building against global electron (vs. electron-prebuilt or loose binary)
 - [ ] general API tidy!
 
+# changelog
+1.x - release
+2.0.0 - drop `--verbose` in favor of `--log-level=[winston-log-levels]`
+
 [cdaringe.com](http://www.cdaringe.com)
