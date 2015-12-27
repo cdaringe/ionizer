@@ -48,6 +48,7 @@ test('rebuild', { timeout: 1e6 }, function(t) {
         electronVersion: app.electronVersion,
         modulesDir: app.targetModulesDir,
         headersDir: app.targetHeaderDir,
+        logLevel: 'silly'
     }))
     .then(assertTestPkgBuiltFilePresent)
     .catch(t.fail)

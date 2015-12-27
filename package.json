@@ -8,9 +8,9 @@
     "lint": "jshint .",
     "validate": "npm ls",
     "preversion": "git checkout master && git pull && npm ls",
-    "publish-patch": "npm run preversion && npm version patch && git push origin master --tags && npm publish",
-    "publish-minor": "npm run preversion && npm version minor && git push origin master --tags && npm publish",
-    "publish-major": "npm run preversion && npm version major && git push origin master --tags && npm publish"
+    "publish-patch": "npm run preversion && npm version patch && git push origin master --tags && npm publish --verbose",
+    "publish-minor": "npm run preversion && npm version minor && git push origin master --tags && npm publish --verbose",
+    "publish-major": "npm run preversion && npm version major && git push origin master --tags && npm publish --verbose"
   },
   "bin": {
     "ionizer": "lib/cli.js"

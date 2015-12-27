@@ -16,7 +16,7 @@ var exports = {
             electronVersion: ver,
             headersDir: app.targetHeaderDir,
             // nodeDistUrl: 'http://localhost:9009/test/local_headers',
-            verbose: true,
+            logLevel: 'debug',
         });
     },
 
