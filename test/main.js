@@ -9,8 +9,6 @@ var fileio = require('./utils/fileio.js');
 var ionizer = require('../lib/main.js');
 var testEnv =  require('./utils/env-setup-teardown.js');
 
-var cp = Promise.promisify(require('ncp').ncp);
-
 test('before', { timeout: 1e6 }, function(t) {
     app.incrimentConsumer();
     Promise.resolve()
