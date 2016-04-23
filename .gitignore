@@ -28,3 +28,6 @@ node_modules
 
 test/local_headers
 lib/headers
+.DS_Store
+.vscode
+test/testheaders
