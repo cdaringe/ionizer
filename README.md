@@ -46,15 +46,6 @@ whenever you install a new npm package into your electron project, rerun ionizer
 
 if you want to fine tune your rebuilds, try a rebuild script!
 
-```json
-// inside your package.json
-...
-  "scripts": {
-      "postinstall": "node .ionizer.js"
-  }
-...
-```
-
 ```js
 // .ionizer.js
 // advanced rebuilding (see simpler package.json example above)
