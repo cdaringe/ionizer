@@ -1,5 +1,7 @@
 # ionizer
 
+[![Greenkeeper badge](https://badges.greenkeeper.io/cdaringe/ionizer.svg)](https://greenkeeper.io/)
+
 Build [electron](atom/electron) compatible modules while working in any version of nodejs.
 
 <img width="100px" height="100px" src="img/ionizer_rounded.png"></img>
